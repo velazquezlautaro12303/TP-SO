@@ -278,3 +278,20 @@ t_list* recibir_paquete(int socket_cliente)
 	free(buffer);
 	return valores;
 }
+
+void push(ptrNodo* pila, PCB* info)
+{
+   ptrNodo nuevo=(ptrNodo)malloc(sizeof(nodo));
+   nuevo->info=info;
+   nuevo->sig=*pila;
+   *pila=nuevo;
+}
+
+PCB* pop(ptrNodo* pila)
+{
+	ptrNodo* p= pila;
+	PCB* x=(*pila)->info;
+	*pila=(*pila)->sig;
+	//free(*p);
+	return x;
+}

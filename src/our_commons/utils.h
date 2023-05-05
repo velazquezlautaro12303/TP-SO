@@ -59,4 +59,43 @@ t_list* recibir_paquete(int);
 void recibir_mensaje(int);
 int recibir_operacion(int);
 
+typedef struct TABLE_SEGMENTS
+{
+	/*FALTA AGREGAR ALGO Q NO SE QUE ES?*/
+	void* direccionBase;
+	uint32_t lenSegmentoDatos;
+} TABLE_SEGMENTS;
+
+typedef struct REGISTERS_CPU
+{
+	uint32_t R[13];
+} REGISTERS_CPU;
+
+typedef struct PCB
+{
+	pid_t PID;
+	int instrucciones;	//Cambiar por ptr
+	int PC;
+	REGISTERS_CPU registerCPU;
+	TABLE_SEGMENTS tablaSegmentos;
+	int estimadoProxRafaga;
+	int tiempoLlegadaReady;
+	int tablaArchivos;	//Cambiar por ptr
+} PCB;
+
+typedef struct tnodo
+{
+   PCB* info;
+   struct tnodo* sig;
+} nodo;
+
+typedef nodo* ptrNodo;
+
+typedef enum STATES {
+	NEW, READY, EXEC, EXIT, BLOCK
+} STATES;
+
+void push(ptrNodo* pila, PCB* info);
+PCB* pop(ptrNodo* pila);
+
 #endif /* UTILS_H_ */

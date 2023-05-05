@@ -5,9 +5,39 @@
 #include "../our_commons/utils.h"
 #include <pthread.h>
 
+ptrNodo pilaNEW_FIFO;
+ptrNodo pilaREADY_FIFO;
+
+void* machine_states(void* ptr)
+{
+	STATES state = NEW;
+
+	while(true)
+	{
+		switch(state)
+		{
+			case NEW:
+				 {
+					PCB* pcb = pop(&pilaNEW_FIFO);
+					if (pcb != NULL)
+						push(&pilaREADY_FIFO, pcb);
+				 }
+				 break;
+			case READY: break;
+			case EXEC: break;
+			case EXIT: break;
+			case BLOCK: break;
+		}
+	}
+}
+
 void* atender_cliente(void* socket_cliente)
 {
 	int socket_console = *((int *)socket_cliente);
+
+	PCB pcb;
+	push(&pilaNEW_FIFO, &pcb);
+
 	int cod_op = recibir_operacion(socket_console);
 	switch (cod_op) {
 		case MENSAJE:
@@ -16,7 +46,7 @@ void* atender_cliente(void* socket_cliente)
 	}
 }
 
-void* conectarse_memory(void* Nothing)
+void* conectarse_memory(void* ptr)
 {
 	t_config* config = iniciar_config();
 
@@ -27,7 +57,7 @@ void* conectarse_memory(void* Nothing)
 	enviar_mensaje_KERNEL("asd", socket_cliente_memory);
 }
 
-void* conectarse_cpu(void* Nothing)
+void* conectarse_cpu(void* ptr)
 {
 	t_config* config = iniciar_config();
 
@@ -38,8 +68,8 @@ void* conectarse_cpu(void* Nothing)
 	enviar_mensaje("hola cpu soy kernel", socket_client);
 }
 
-int main() {
-
+int main()
+{
 	t_config* config = iniciar_config();
 
 	char* IP_KERNEL 		= config_get_string_value(config, "IP_KERNEL");
@@ -47,13 +77,16 @@ int main() {
 
 	logger = log_create("./../log.log", "Servidor", 1, LOG_LEVEL_DEBUG);
 
-	pthread_t thread_memory, thread_cpu;
+	pthread_t thread_memory, thread_cpu, pthread_machine_states;
 
 	pthread_create(&thread_memory, NULL, (void*) conectarse_memory, NULL);
 	pthread_detach(thread_memory);
 
 	pthread_create(&thread_cpu, NULL, (void*) conectarse_cpu, NULL);
 	pthread_detach(thread_cpu);
+
+	pthread_create(&pthread_machine_states, NULL, (void*) machine_states, NULL);
+	pthread_detach(pthread_machine_states);
 
 	int socket_servidor = init_socket(IP_KERNEL, PUERTO_KERNEL);
 
