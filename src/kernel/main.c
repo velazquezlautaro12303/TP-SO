@@ -27,6 +27,17 @@ void* conectarse_memory(void* Nothing)
 	enviar_mensaje_KERNEL("asd", socket_cliente_memory);
 }
 
+void* conectarse_cpu(void* Nothing)
+{
+	t_config* config = iniciar_config();
+
+	char* IP_CPU 		= config_get_string_value(config, "IP_CPU");
+	char* PUERTO_CPU 	= config_get_string_value(config, "PUERTO_CPU");
+
+	int socket_client = crear_conexion(IP_CPU, PUERTO_CPU);
+	enviar_mensaje("hola cpu soy kernel", socket_client);
+}
+
 int main() {
 
 	t_config* config = iniciar_config();
@@ -34,13 +45,15 @@ int main() {
 	char* IP_KERNEL 		= config_get_string_value(config, "IP_KERNEL");
 	char* PUERTO_KERNEL 	= config_get_string_value(config, "PUERTO_KERNEL");
 
-	logger = log_create("log.log", "Servidor", 1, LOG_LEVEL_DEBUG);
-	pthread_t thread;
-	pthread_create(&thread,
-				  	  NULL,
-					  (void*) conectarse_memory,
-					  NULL);
-   pthread_detach(thread);
+	logger = log_create("./../log.log", "Servidor", 1, LOG_LEVEL_DEBUG);
+
+	pthread_t thread_memory, thread_cpu;
+
+	pthread_create(&thread_memory, NULL, (void*) conectarse_memory, NULL);
+	pthread_detach(thread_memory);
+
+	pthread_create(&thread_cpu, NULL, (void*) conectarse_cpu, NULL);
+	pthread_detach(thread_cpu);
 
 	int socket_servidor = init_socket(IP_KERNEL, PUERTO_KERNEL);
 
@@ -48,10 +61,7 @@ int main() {
 	   pthread_t thread;
 	   int *socket_cliente = malloc(sizeof(int));
 	   *socket_cliente = accept(socket_servidor, NULL, NULL);
-	   pthread_create(&thread,
-	                  NULL,
-	                  (void*) atender_cliente,
-	                  socket_cliente);
+	   pthread_create(&thread, NULL, (void*) atender_cliente, socket_cliente);
 	   pthread_detach(thread);
 	}
 
