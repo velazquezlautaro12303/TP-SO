@@ -254,7 +254,6 @@ void recibir_mensaje(int socket_cliente)
 	int size;
 	char* buffer = recibir_buffer(&size, socket_cliente);
 	log_info(logger, "Me llego el mensaje %s", buffer);
-	puts(buffer);
 	free(buffer);
 }
 
