@@ -7,6 +7,7 @@
 
 ptrNodo pilaNEW_FIFO;
 ptrNodo pilaREADY_FIFO;
+pthread_mutex_t mutex_pila_NEW;
 
 void* machine_states(void* ptr)
 {
@@ -17,13 +18,26 @@ void* machine_states(void* ptr)
 		switch(state)
 		{
 			case NEW:
-				 {
+				{
+					pthread_mutex_lock(&mutex_pila_NEW);
 					PCB* pcb = pop(&pilaNEW_FIFO);
+					pthread_mutex_unlock(&mutex_pila_NEW);
 					if (pcb != NULL)
+					{
+						pthread_mutex_lock(&mutex_pila_NEW);
 						push(&pilaREADY_FIFO, pcb);
-				 }
-				 break;
-			case READY: break;
+						pthread_mutex_unlock(&mutex_pila_NEW);
+						state = READY;
+					}
+				} break;
+			case READY: 
+				{
+					PCB* pcb = pop(&pilaREADY_FIFO);
+					if (pcb != NULL) 
+					{
+						puts("elimine el pcb");
+					}
+				} break;
 			case EXEC: break;
 			case EXIT: break;
 			case BLOCK: break;
@@ -36,7 +50,9 @@ void* atender_cliente(void* socket_cliente)
 	int socket_console = *((int *)socket_cliente);
 
 	PCB pcb;
+	pthread_mutex_lock(&mutex_pila_NEW);
 	push(&pilaNEW_FIFO, &pcb);
+	pthread_mutex_unlock(&mutex_pila_NEW);
 
 	int cod_op = recibir_operacion(socket_console);
 	switch (cod_op) {
@@ -78,6 +94,8 @@ int main()
 	logger = log_create("./../log.log", "Servidor", 1, LOG_LEVEL_DEBUG);
 
 	pthread_t thread_memory, thread_cpu, pthread_machine_states;
+
+	pthread_mutex_init(&mutex_pila_NEW, NULL);
 
 	pthread_create(&thread_memory, NULL, (void*) conectarse_memory, NULL);
 	pthread_detach(thread_memory);
