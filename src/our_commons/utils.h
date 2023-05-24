@@ -59,6 +59,27 @@ t_list* recibir_paquete(int);
 void recibir_mensaje(int);
 int recibir_operacion(int);
 
+typedef enum OPCODE
+{
+	SET,
+	MOV_IN,
+	MOV_OUT,
+	I_O,
+	F_OPEN,
+	F_CLOSE,
+	F_SEEK,
+	F_READ,
+	F_WRITE,
+	F_TRUNCATE,
+	WAIT,
+	SIGNAL,
+	CREATE_SEGMENT,
+	DELETE_SEGMENT,
+	YIELD,
+	C_EXIT
+} OPCODE;
+
+
 typedef struct TABLE_SEGMENTS
 {
 	/*FALTA AGREGAR ALGO Q NO SE QUE ES?*/
@@ -74,7 +95,7 @@ typedef struct REGISTERS_CPU
 typedef struct PCB
 {
 	pid_t PID;
-	int instrucciones;	//Cambiar por ptr
+	char** instrucciones;	//Cambiar por ptr
 	int PC;
 	REGISTERS_CPU registerCPU;
 	TABLE_SEGMENTS tablaSegmentos;

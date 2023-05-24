@@ -4,10 +4,20 @@
 #include "string.h"
 #include "../our_commons/utils.h"
 #include <pthread.h>
+#include <stdbool.h>
+#include <semaphore.h>
 
 ptrNodo pilaNEW_FIFO;
 ptrNodo pilaREADY_FIFO;
 pthread_mutex_t mutex_pila_NEW, mutex_pila_READY;
+
+PCB* pcb;
+sem_t semaphore;
+
+bool grado_de_multiprogramacion()
+{
+	return true;
+}
 
 void* machine_states(void* ptr)
 {
@@ -22,26 +32,30 @@ void* machine_states(void* ptr)
 					PCB* pcb = pop(&pilaNEW_FIFO);
 					pthread_mutex_unlock(&mutex_pila_NEW);
 
-					if (pcb != NULL)
+					if (pcb != NULL && grado_de_multiprogramacion())
 					{
 						printf("PID_2 = %i\n", pcb->PID);
 						pthread_mutex_lock(&mutex_pila_NEW);
 						push(&pilaREADY_FIFO, pcb);
 						pthread_mutex_unlock(&mutex_pila_NEW);
-						// state = READY;
 					}
+					
+					state = READY;
 				} break;
 			case READY: 
 				{
 					pthread_mutex_lock(&mutex_pila_READY);
-					PCB* pcb = pop(&pilaREADY_FIFO);
+					pcb = pop(&pilaREADY_FIFO);
 					pthread_mutex_unlock(&mutex_pila_READY);
 					if (pcb != NULL) 
 					{
-						puts("elimine el pcb");
+						state = EXEC;
 					}
 				} break;
-			case EXEC: break;
+			case EXEC: 
+				{
+					// sem_post(&semaphore);
+				} break;
 			case EXIT: break;
 			case BLOCK: break;
 		}
@@ -85,8 +99,10 @@ void* conectarse_cpu(void* ptr)
 	char* PUERTO_CPU 	= config_get_string_value(config, "PUERTO_CPU");
 
 	int socket_client = crear_conexion(IP_CPU, PUERTO_CPU);
-	
-	enviar_mensaje("hola cpu soy kernel", socket_client);
+
+	// sem_wait(&semaphore);
+	enviar_structura(pcb, socket_client, sizeof(pcb));
+	// sem_post(&semaphore);
 }
 
 int main()
@@ -99,6 +115,8 @@ int main()
 	char* PUERTO_KERNEL 	= config_get_string_value(config, "PUERTO_KERNEL");
 
 	logger = log_create("./../log.log", "Kernel", 1, LOG_LEVEL_DEBUG);
+	
+	sem_init(&semaphore, 0, 0);
 
 	pthread_t thread_memory, thread_cpu, pthread_machine_states;
 
