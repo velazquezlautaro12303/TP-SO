@@ -107,6 +107,26 @@ void enviar_mensaje_KERNEL(char* mensaje, int socket_cliente)
 	eliminar_paquete(paquete);
 }
 
+void enviar_structura(void* mensaje, int socket_cliente, int size)
+{
+	t_paquete* paquete = malloc(sizeof(t_paquete));
+
+	paquete->codigo_operacion = MENSAJE;
+	paquete->buffer = malloc(sizeof(t_buffer));
+	paquete->buffer->size = size;
+	paquete->buffer->stream = malloc(paquete->buffer->size);
+	memcpy(paquete->buffer->stream, mensaje, paquete->buffer->size);
+
+	int bytes = paquete->buffer->size + 2*sizeof(int);
+
+	void* a_enviar = serializar_paquete(paquete, bytes);
+
+	send(socket_cliente, a_enviar, bytes, 0);
+
+	free(a_enviar);
+	eliminar_paquete(paquete);
+}
+
 void enviar_mensaje(char* mensaje, int socket_cliente)
 {
 	t_paquete* paquete = malloc(sizeof(t_paquete));
@@ -257,6 +277,15 @@ void recibir_mensaje(int socket_cliente)
 	free(buffer);
 }
 
+void* recibir_structura(int socket_cliente)
+{
+	int size;
+	return recibir_buffer(&size, socket_cliente);
+	// log_info(logger, "Me llego el mensaje %s", buffer);
+	// free(buffer);
+	// return pcb;
+}
+
 t_list* recibir_paquete(int socket_cliente)
 {
 	int size;
@@ -290,8 +319,11 @@ void push(ptrNodo* pila, PCB* info)
 PCB* pop(ptrNodo* pila)
 {
 	ptrNodo* p= pila;
-	PCB* x=(*pila)->info;
-	*pila=(*pila)->sig;
-	//free(*p);
+	PCB* x = NULL;
+	if(*p != NULL) {
+		x = (*pila)->info;
+		*pila=(*pila)->sig;
+		//free(*p);		
+	}
 	return x;
 }

@@ -98,4 +98,7 @@ typedef enum STATES {
 void push(ptrNodo* pila, PCB* info);
 PCB* pop(ptrNodo* pila);
 
+void enviar_structura(void* mensaje, int socket_cliente, int size);
+void* recibir_structura(int socket_cliente);
+
 #endif /* UTILS_H_ */

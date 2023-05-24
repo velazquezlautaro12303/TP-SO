@@ -13,12 +13,10 @@ void* conectarse_memory(void* Nothing)
 	enviar_mensaje_FILESYSTEM("asd", socket_cliente_memory);
 }
 
-int main() {
+int main() 
+{
 	pthread_t thread;
-	pthread_create(&thread,
-					  NULL,
-					  (void*) conectarse_memory,
-					  NULL);
+	pthread_create(&thread, NULL, (void*) conectarse_memory, NULL);
 	pthread_detach(thread);
 
 	while(1)

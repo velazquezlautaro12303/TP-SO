@@ -6,7 +6,8 @@ void* atender_cliente(void* socket_cliente)
 {
 	int socket_console = *((int *)socket_cliente);
 	int cod_op = recibir_operacion(socket_console);
-	switch (cod_op) {
+	switch (cod_op) 
+	{
 		case MENSAJE:
 			recibir_mensaje(socket_console);
 			break;
@@ -24,8 +25,8 @@ void* conectarse_memory(void* ptr)
 	enviar_mensaje_CPU("asd", socket_cliente_memory);
 }
 
-int main() {
-
+int main()
+{
 	logger = log_create("./../log.log", "CPU", 1, LOG_LEVEL_DEBUG);
 
 	pthread_t thread;

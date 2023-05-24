@@ -7,32 +7,35 @@
 
 ptrNodo pilaNEW_FIFO;
 ptrNodo pilaREADY_FIFO;
-pthread_mutex_t mutex_pila_NEW;
+pthread_mutex_t mutex_pila_NEW, mutex_pila_READY;
 
 void* machine_states(void* ptr)
 {
-	STATES state = NEW;
-
+	static STATES state = NEW;
 	while(true)
 	{
 		switch(state)
 		{
 			case NEW:
-				{
+				{	
 					pthread_mutex_lock(&mutex_pila_NEW);
 					PCB* pcb = pop(&pilaNEW_FIFO);
 					pthread_mutex_unlock(&mutex_pila_NEW);
+
 					if (pcb != NULL)
 					{
+						printf("PID_2 = %i\n", pcb->PID);
 						pthread_mutex_lock(&mutex_pila_NEW);
 						push(&pilaREADY_FIFO, pcb);
 						pthread_mutex_unlock(&mutex_pila_NEW);
-						state = READY;
+						// state = READY;
 					}
 				} break;
 			case READY: 
 				{
+					pthread_mutex_lock(&mutex_pila_READY);
 					PCB* pcb = pop(&pilaREADY_FIFO);
+					pthread_mutex_unlock(&mutex_pila_READY);
 					if (pcb != NULL) 
 					{
 						puts("elimine el pcb");
@@ -49,17 +52,18 @@ void* atender_cliente(void* socket_cliente)
 {
 	int socket_console = *((int *)socket_cliente);
 
-	PCB pcb;
-	pthread_mutex_lock(&mutex_pila_NEW);
-	push(&pilaNEW_FIFO, &pcb);
-	pthread_mutex_unlock(&mutex_pila_NEW);
+	PCB* pcb = NULL;
 
 	int cod_op = recibir_operacion(socket_console);
 	switch (cod_op) {
 		case MENSAJE:
-			recibir_mensaje(socket_console);
+			pcb = recibir_structura(socket_console);
 			break;
 	}
+
+	pthread_mutex_lock(&mutex_pila_NEW);
+	push(&pilaNEW_FIFO, pcb);
+	pthread_mutex_unlock(&mutex_pila_NEW);
 }
 
 void* conectarse_memory(void* ptr)
@@ -81,6 +85,7 @@ void* conectarse_cpu(void* ptr)
 	char* PUERTO_CPU 	= config_get_string_value(config, "PUERTO_CPU");
 
 	int socket_client = crear_conexion(IP_CPU, PUERTO_CPU);
+	
 	enviar_mensaje("hola cpu soy kernel", socket_client);
 }
 
@@ -88,14 +93,17 @@ int main()
 {
 	t_config* config = iniciar_config();
 
+    pilaNEW_FIFO = NULL;
+
 	char* IP_KERNEL 		= config_get_string_value(config, "IP_KERNEL");
 	char* PUERTO_KERNEL 	= config_get_string_value(config, "PUERTO_KERNEL");
 
-	logger = log_create("./../log.log", "Servidor", 1, LOG_LEVEL_DEBUG);
+	logger = log_create("./../log.log", "Kernel", 1, LOG_LEVEL_DEBUG);
 
 	pthread_t thread_memory, thread_cpu, pthread_machine_states;
 
 	pthread_mutex_init(&mutex_pila_NEW, NULL);
+	pthread_mutex_init(&mutex_pila_READY, NULL);
 
 	pthread_create(&thread_memory, NULL, (void*) conectarse_memory, NULL);
 	pthread_detach(thread_memory);
@@ -115,7 +123,7 @@ int main()
 	   pthread_create(&thread, NULL, (void*) atender_cliente, socket_cliente);
 	   pthread_detach(thread);
 	}
-
+	
 	return EXIT_SUCCESS;
 }
 
