@@ -12,7 +12,7 @@ ptrNodo pilaREADY_FIFO;
 pthread_mutex_t mutex_pila_NEW, mutex_pila_READY;
 
 PCB* pcb;
-sem_t semaphore;
+sem_t semaphore, semaphore_EXEC_1, semaphore_EXEC_2;
 
 bool grado_de_multiprogramacion()
 {
@@ -27,7 +27,7 @@ void* machine_states(void* ptr)
 		switch(state)
 		{
 			case NEW:
-				{	
+				{
 					pthread_mutex_lock(&mutex_pila_NEW);
 					PCB* pcb = pop(&pilaNEW_FIFO);
 					pthread_mutex_unlock(&mutex_pila_NEW);
@@ -42,19 +42,24 @@ void* machine_states(void* ptr)
 					
 					state = READY;
 				} break;
-			case READY: 
+			case READY:
 				{
 					pthread_mutex_lock(&mutex_pila_READY);
 					pcb = pop(&pilaREADY_FIFO);
 					pthread_mutex_unlock(&mutex_pila_READY);
-					if (pcb != NULL) 
-					{
-						state = EXEC;
-					}
+					state = pcb != NULL ? EXEC : NEW;
 				} break;
-			case EXEC: 
+			case EXEC:
 				{
-					// sem_post(&semaphore);
+					sem_wait(&semaphore_EXEC_2);
+					/*HARDCODE*/
+					puts("HARDCODE");					
+					pcb->PC = 0;
+					pcb->instrucciones[0] = "SET\0";
+					printf("pcb->PC = %i\n", pcb->PC);
+					printf("pcb->PID = %i\n", pcb->PID);
+					puts("");
+					sem_post(&semaphore_EXEC_1);
 				} break;
 			case EXIT: break;
 			case BLOCK: break;
@@ -69,7 +74,8 @@ void* atender_cliente(void* socket_cliente)
 	PCB* pcb = NULL;
 
 	int cod_op = recibir_operacion(socket_console);
-	switch (cod_op) {
+	switch (cod_op) 
+	{
 		case MENSAJE:
 			pcb = recibir_structura(socket_console);
 			break;
@@ -100,9 +106,17 @@ void* conectarse_cpu(void* ptr)
 
 	int socket_client = crear_conexion(IP_CPU, PUERTO_CPU);
 
-	// sem_wait(&semaphore);
-	enviar_structura(pcb, socket_client, sizeof(pcb));
-	// sem_post(&semaphore);
+	while(true)
+	{
+		sem_wait(&semaphore_EXEC_1);
+		puts("CPU");
+		printf("pcb->PC = %i\n", pcb->PC);
+		printf("pcb->PID = %i\n", pcb->PID);
+		enviar_structura(pcb, socket_client, sizeof(pcb));
+		pcb = recibir_structura(socket_client);
+		printf("pcb->PC = %i\n", pcb->PC);
+		sem_post(&semaphore_EXEC_2);
+	}
 }
 
 int main()
@@ -117,6 +131,8 @@ int main()
 	logger = log_create("./../log.log", "Kernel", 1, LOG_LEVEL_DEBUG);
 	
 	sem_init(&semaphore, 0, 0);
+	sem_init(&semaphore_EXEC_1, 0, 0);
+	sem_init(&semaphore_EXEC_2, 0, 1);
 
 	pthread_t thread_memory, thread_cpu, pthread_machine_states;
 
@@ -134,7 +150,8 @@ int main()
 
 	int socket_servidor = init_socket(IP_KERNEL, PUERTO_KERNEL);
 
-	while (1) {
+	while (1) 
+	{
 	   pthread_t thread;
 	   int *socket_cliente = malloc(sizeof(int));
 	   *socket_cliente = accept(socket_servidor, NULL, NULL);
@@ -144,4 +161,3 @@ int main()
 	
 	return EXIT_SUCCESS;
 }
-

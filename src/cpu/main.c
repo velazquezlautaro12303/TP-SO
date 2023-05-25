@@ -21,20 +21,33 @@ static char* obtenerCadenaHastaEspacio(char* cadena, int* endString) {
     return resultado;
 }
 
+static void guardarEnRegistros(char* parametro)
+{
+
+}
+
+static OPCODE obtenerOpcode() 
+{
+	return C_EXIT;
+}
+
 char* fetch(PCB* pcb)
 {
 	return pcb->instrucciones[pcb->PC++];
 }
 
-void decode(char * REG_IR) 
+OPCODE decode(char * REG_IR) 
 {
 	int condition = 0;
+	 
 	do {
-		puts(obtenerCadenaHastaEspacio(REG_IR, &condition));
+		guardarEnRegistros(obtenerCadenaHastaEspacio(REG_IR, &condition));
 	} while(condition != 0);
+	
+	return obtenerOpcode();
 }
 
-void execute(OPCODE opcode)
+bool execute(OPCODE opcode)
 {
 	switch (opcode)
 	{
@@ -99,8 +112,10 @@ void execute(OPCODE opcode)
 			break;
 
 		case C_EXIT:
-			/* code */
-			break;
+			{
+				puts("C_EXIT");
+				return true;
+			} break;
 	}
 }
 
@@ -108,18 +123,28 @@ void* atender_cliente(void* socket_cliente)
 {
 	int socket_console = *((int *)socket_cliente);
 	int cod_op = recibir_operacion(socket_console);
+
+	PCB* pcb = NULL;
+	char* REG_IR = NULL;
+	bool devolverPCB = false;
+
 	switch (cod_op)
 	{
 		case MENSAJE:
-			recibir_structura(socket_console);
+			pcb = recibir_structura(socket_console);
 			break;
 	}
-	PCB pcb;
-	OPCODE opcode = SET;
+	
 	/*PIPELINE*/
-	char * REG_IR = fetch(&pcb);
-	decode(REG_IR);
-	execute(opcode);
+	// do {
+		printf("pcb->PC = %i\n", pcb->PID);
+		/*REG_IR = fetch(pcb);
+		printf("pcb->PC = %i\n", pcb->PC);
+		OPCODE opcode = decode(REG_IR);
+		devolverPCB = execute(opcode);*/
+	// } while (!devolverPCB);
+	
+	// enviar_structura(pcb, socket_console, sizeof(pcb));
 }
 
 void* conectarse_memory(void* ptr)
