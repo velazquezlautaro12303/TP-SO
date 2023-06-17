@@ -1,8 +1,60 @@
-#include "utils.h"
+#include "my_commons.h"
+
+int list_length(Node* head) {
+	int cant = 0;
+	while (head) {
+		cant++;
+		head = head->next;
+	}
+	return cant;
+}
+
+char* getInstruction(Node* head, int pos) {
+	int cant = 0;
+	char *instrucction = head->instrucciones;;
+	while (pos > cant) {
+		head = head->next;
+		instrucction = head->instrucciones;
+		cant++;
+	}	
+	return instrucction;
+}
+
+void insert(Node** head, char* instrucciones) {
+    //funcion que se encarga de la carga de la lista
+    Node* newNode = (Node*) malloc (sizeof(Node));
+	newNode->instrucciones = (char *)malloc(strlen(instrucciones));
+    strcpy(newNode->instrucciones, instrucciones);
+    newNode->next = NULL;
+
+    if (*head == NULL) {
+        *head = newNode;
+    } else {
+		Node* temp = *head;
+        while (temp->next != NULL) {
+            temp = temp->next;
+        }
+        temp->next = newNode;
+    }
+}
+
+char* get(Node** head) {
+	if(*head != NULL) {
+		Node* tmp = *head;
+		*head = (*head)->next;
+		char * cadena = (char *)malloc(strlen(tmp->instrucciones));
+		strcpy(cadena, tmp->instrucciones);
+		free(tmp->instrucciones);
+		free(tmp);
+		return cadena;
+	} else {
+		return NULL;
+	}
+}
 
 t_config* iniciar_config()
 {
-	t_config* nuevo_config = config_create("./../global.config");
+	t_config* nuevo_config = config_create("./../../global.config");
 
 	return nuevo_config;
 }
@@ -107,11 +159,23 @@ void enviar_mensaje_KERNEL(char* mensaje, int socket_cliente)
 	eliminar_paquete(paquete);
 }
 
-void enviar_structura(void* mensaje, int socket_cliente, int size)
+void enviarPCB(PCB* pcb, int socket_cliente, op_code cod_operation) 
+{
+	char *cadena = NULL;
+	enviar_structura(pcb, socket_cliente, sizeof(PCB), cod_operation);
+	for (int i = 0; i < pcb->listInstrucciones.cant; i++)
+	{
+		cadena = get(&(pcb->listInstrucciones.instrucciones));
+		enviar_structura(cadena, socket_cliente, strlen(cadena) + 1, cod_operation);
+		free(cadena);
+	}
+}
+
+void enviar_structura(void* mensaje, int socket_cliente, int size, op_code cod_operation)
 {
 	t_paquete* paquete = malloc(sizeof(t_paquete));
 
-	paquete->codigo_operacion = MENSAJE;
+	paquete->codigo_operacion = cod_operation;
 	paquete->buffer = malloc(sizeof(t_buffer));
 	paquete->buffer->size = size;
 	paquete->buffer->stream = malloc(paquete->buffer->size);
@@ -157,7 +221,7 @@ void crear_buffer(t_paquete* paquete)
 t_paquete* crear_super_paquete(void)
 {
 	//me falta un malloc!
-	t_paquete* paquete;
+	t_paquete* paquete = NULL;
 
 	//descomentar despues de arreglar
 	//paquete->codigo_operacion = PAQUETE;
@@ -205,13 +269,11 @@ void liberar_conexion(int socket_cliente)
 	close(socket_cliente);
 }
 
-t_log* logger;
-
 int init_socket(char* ip, char* puerto)
 {
 	int socket_servidor;
 
-	struct addrinfo hints, *servinfo, *p;
+	struct addrinfo hints, *servinfo;
 
 	memset(&hints, 0, sizeof(hints));
 	hints.ai_family = AF_UNSPEC;
@@ -232,7 +294,6 @@ int init_socket(char* ip, char* puerto)
     listen(socket_servidor, SOMAXCONN);
 
 	freeaddrinfo(servinfo);
-	log_trace(logger, "Listo para escuchar a mi cliente");
 
 	return socket_servidor;
 }
@@ -241,7 +302,6 @@ int esperar_cliente(int socket_servidor)
 {
 	// Aceptamos un nuevo cliente
 	int socket_cliente = accept(socket_servidor, NULL, NULL);
-	log_info(logger, "Se conecto un cliente!");
 
 	return socket_cliente;
 }
@@ -273,8 +333,22 @@ void recibir_mensaje(int socket_cliente)
 {
 	int size;
 	char* buffer = recibir_buffer(&size, socket_cliente);
-	log_info(logger, "Me llego el mensaje %s", buffer);
 	free(buffer);
+}
+
+PCB* recibirPCB(int socket_cliente, op_code* cod_operation) {
+	*cod_operation = recibir_operacion(socket_cliente);
+	PCB* pcb = recibir_structura(socket_cliente);
+	pcb->listInstrucciones.instrucciones = NULL;
+	char *instruccion = NULL;
+	for (int i = 0; i < pcb->listInstrucciones.cant; i++)
+	{
+		recibir_operacion(socket_cliente);
+		instruccion = recibir_structura(socket_cliente);
+		insert(&(pcb->listInstrucciones.instrucciones), instruccion);
+		free(instruccion);
+	}
+	return pcb;
 }
 
 void* recibir_structura(int socket_cliente)

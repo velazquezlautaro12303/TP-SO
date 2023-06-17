@@ -1,5 +1,5 @@
 #include <stdio.h>
-#include "../our_commons/utils.h"
+#include "my_commons.h"
 #include <pthread.h>
 
 void* conectarse_memory(void* Nothing)
@@ -11,6 +11,7 @@ void* conectarse_memory(void* Nothing)
 
 	int socket_cliente_memory = crear_conexion(IP_MEMORIA, PUERTO_MEMORIA);
 	enviar_mensaje_FILESYSTEM("asd", socket_cliente_memory);
+	return NULL;
 }
 
 int main() 

@@ -21,7 +21,10 @@ typedef enum
 	KERNEL 				= 1,
 	FILESYSTEM			= 2,
 	MENSAJE,
-	PAQUETE
+	PAQUETE,
+	BLOCKED,
+	_EXIT,
+	INIT_PROCESS
 }op_code;
 
 typedef struct
@@ -48,8 +51,6 @@ void agregar_a_paquete(t_paquete* paquete, void* valor, int tamanio);
 void enviar_paquete(t_paquete* paquete, int socket_cliente);
 void liberar_conexion(int socket_cliente);
 void eliminar_paquete(t_paquete* paquete);
-
-extern t_log* logger;
 
 void* recibir_buffer(int*, int);
 
@@ -92,13 +93,25 @@ typedef struct REGISTERS_CPU
 	uint32_t R[13];
 } REGISTERS_CPU;
 
+typedef struct Node { 
+    //creo un nodo el cual servira de listado para las instrucciones del archivo
+    char* instrucciones;
+    struct Node* next;
+} Node;
+
+typedef struct LIST_INSTRUCCIONES
+{
+	int cant;
+	Node* instrucciones;
+} LIST_INSTRUCCIONES;
+
 typedef struct PCB
 {
 	pid_t PID;
-	char** instrucciones;	//Cambiar por ptr
+	LIST_INSTRUCCIONES listInstrucciones;	//Cambiar por ptr
 	int PC;
 	REGISTERS_CPU registerCPU;
-	TABLE_SEGMENTS tablaSegmentos;
+	TABLE_SEGMENTS* tablaSegmentos;
 	int estimadoProxRafaga;
 	int tiempoLlegadaReady;
 	int tablaArchivos;	//Cambiar por ptr
@@ -119,7 +132,14 @@ typedef enum STATES {
 void push(ptrNodo* pila, PCB* info);
 PCB* pop(ptrNodo* pila);
 
-void enviar_structura(void* mensaje, int socket_cliente, int size);
+void enviar_structura(void* mensaje, int socket_cliente, int size, op_code cod_operation);
 void* recibir_structura(int socket_cliente);
+
+void insert(Node** head, char* instrucciones);
+char* get(Node** head);
+int list_length(Node* head);
+PCB* recibirPCB(int socket_cliente, op_code* cod_operation);
+void enviarPCB(PCB* pcb, int socket_cliente, op_code cod_operation);
+char* getInstruction(Node* head, int pos);
 
 #endif /* UTILS_H_ */
