@@ -1,4 +1,18 @@
 #include "my_commons.h"
+#include <stdlib.h>
+
+int size_reg(char *cadena) 
+{
+	int TAM = 0;
+	if (cadena[0] == 'R') {
+		TAM = 16;
+	} else if (cadena[0] == 'E') {
+		TAM = 8;
+	} else {
+		TAM = 4;
+	}
+	return TAM;
+}
 
 int list_length(Node* head) {
 	int cant = 0;
@@ -22,8 +36,8 @@ char* getInstruction(Node* head, int pos) {
 
 void insert(Node** head, char* instrucciones) {
     //funcion que se encarga de la carga de la lista
-    Node* newNode = (Node*) malloc (sizeof(Node));
-	newNode->instrucciones = (char *)malloc(strlen(instrucciones));
+    Node* newNode = malloc(sizeof(Node));
+	newNode->instrucciones = (char *)malloc(strlen(instrucciones) + 1);
     strcpy(newNode->instrucciones, instrucciones);
     newNode->next = NULL;
 
@@ -38,15 +52,48 @@ void insert(Node** head, char* instrucciones) {
     }
 }
 
-char* get(Node** head) {
+void insert_INODO(Node_FCB** head, INODO_PROCESO* inodo) 
+{
+    Node_FCB* newNode = (Node_FCB*) malloc (sizeof(Node_FCB));
+	strcpy(newNode->inodo.nombre_del_archivo, inodo->nombre_del_archivo);
+	newNode->inodo.ptr_Archivo = inodo->ptr_Archivo;
+	newNode->next = NULL;
+
+    if (*head == NULL) {
+        *head = newNode;
+    } else {
+		Node_FCB* temp = *head;
+        while (temp->next != NULL) {
+            temp = temp->next;
+        }
+        temp->next = newNode;
+    }
+}
+
+char* get(Node** head) 
+{
 	if(*head != NULL) {
 		Node* tmp = *head;
 		*head = (*head)->next;
-		char * cadena = (char *)malloc(strlen(tmp->instrucciones));
+		char * cadena = (char *)malloc(strlen(tmp->instrucciones) + 1);
 		strcpy(cadena, tmp->instrucciones);
 		free(tmp->instrucciones);
 		free(tmp);
 		return cadena;
+	} else {
+		return NULL;
+	}
+}
+
+INODO_PROCESO* get_INODO(Node_FCB** head) 
+{
+	if(*head != NULL) {
+		Node_FCB* tmp = *head;
+		*head = (*head)->next;
+		INODO_PROCESO * inodo = (INODO_PROCESO *)malloc(sizeof(INODO_PROCESO));
+		memcpy(inodo, &(tmp->inodo), sizeof(INODO_PROCESO));
+		free(tmp);
+		return inodo;
 	} else {
 		return NULL;
 	}
@@ -162,12 +209,23 @@ void enviar_mensaje_KERNEL(char* mensaje, int socket_cliente)
 void enviarPCB(PCB* pcb, int socket_cliente, op_code cod_operation) 
 {
 	char *cadena = NULL;
+	INODO_PROCESO *inodo = NULL;
 	enviar_structura(pcb, socket_cliente, sizeof(PCB), cod_operation);
 	for (int i = 0; i < pcb->listInstrucciones.cant; i++)
 	{
 		cadena = get(&(pcb->listInstrucciones.instrucciones));
 		enviar_structura(cadena, socket_cliente, strlen(cadena) + 1, cod_operation);
 		free(cadena);
+	}
+	for (int i = 0; i < pcb->tablaArchivos.cant; i++)
+	{
+		inodo = get_INODO(&(pcb->tablaArchivos.fcb));
+		enviar_structura(inodo, socket_cliente, sizeof(INODO_PROCESO), cod_operation);
+		free(inodo);
+	}
+	if (pcb->CANT_SEGMENTOS > 0)
+	{
+		enviar_structura(pcb->tablaSegmentos, socket_cliente, pcb->CANT_SEGMENTOS*sizeof(TABLE_SEGMENTS), cod_operation);
 	}
 }
 
@@ -329,24 +387,38 @@ void* recibir_buffer(int* size, int socket_cliente)
 	return buffer;
 }
 
-void recibir_mensaje(int socket_cliente)
+char* recibir_mensaje(int socket_cliente, int* size)
 {
-	int size;
-	char* buffer = recibir_buffer(&size, socket_cliente);
-	free(buffer);
+	char* buffer = recibir_buffer(size, socket_cliente);
+	return buffer;
 }
 
-PCB* recibirPCB(int socket_cliente, op_code* cod_operation) {
+PCB* recibirPCB(int socket_cliente, op_code* cod_operation) 
+{
 	*cod_operation = recibir_operacion(socket_cliente);
 	PCB* pcb = recibir_structura(socket_cliente);
 	pcb->listInstrucciones.instrucciones = NULL;
 	char *instruccion = NULL;
+	INODO_PROCESO *inodo = NULL;
 	for (int i = 0; i < pcb->listInstrucciones.cant; i++)
 	{
 		recibir_operacion(socket_cliente);
 		instruccion = recibir_structura(socket_cliente);
 		insert(&(pcb->listInstrucciones.instrucciones), instruccion);
 		free(instruccion);
+	}
+	pcb->tablaArchivos.fcb = NULL;
+	for (int i = 0; i < pcb->tablaArchivos.cant; i++)
+	{
+		recibir_operacion(socket_cliente);
+		inodo = recibir_structura(socket_cliente);
+		insert_INODO(&(pcb->tablaArchivos.fcb), inodo);
+		free(inodo);
+	}
+	if (pcb->CANT_SEGMENTOS > 0) 
+	{
+		recibir_operacion(socket_cliente);
+		pcb->tablaSegmentos = recibir_structura(socket_cliente);
 	}
 	return pcb;
 }
@@ -384,10 +456,19 @@ t_list* recibir_paquete(int socket_cliente)
 
 void push(ptrNodo* pila, PCB* info)
 {
-   ptrNodo nuevo=(ptrNodo)malloc(sizeof(nodo));
-   nuevo->info=info;
-   nuevo->sig=*pila;
-   *pila=nuevo;
+	ptrNodo nuevo=(ptrNodo)malloc(sizeof(nodo));
+	nuevo->info=info;
+	nuevo->sig=NULL;
+	if (*pila == NULL) {
+		puts("PILA NULL");
+		*pila=nuevo;
+	} else {
+		puts("PILA NO NULL");
+		ptrNodo pila_aux = *pila;
+		while (pila_aux->sig != NULL)
+			pila_aux = pila_aux->sig;
+		pila_aux->sig = nuevo;
+	}
 }
 
 PCB* pop(ptrNodo* pila)
@@ -395,6 +476,7 @@ PCB* pop(ptrNodo* pila)
 	ptrNodo* p= pila;
 	PCB* x = NULL;
 	if(*p != NULL) {
+		puts("POP PILA");
 		x = (*pila)->info;
 		*pila=(*pila)->sig;
 		//free(*p);		

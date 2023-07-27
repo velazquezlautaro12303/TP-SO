@@ -8,7 +8,7 @@
 #include <sys/types.h>
 #include <unistd.h>
 
-int main() 
+int main(int argc, char* argv[]) 
 {
 	t_config* config = iniciar_config();
 
@@ -19,18 +19,26 @@ int main()
 	
 	PCB pcb;
 	pcb.PID = getpid();
+	printf("PID = %i\n", pcb.PID);
 	pcb.PC = 0;
+	pcb.tablaSegmentos = NULL;
+	pcb.CANT_SEGMENTOS = 0;
+	memcpy(pcb.registerCPU.R, "\0", 16*5);
+	memcpy(pcb.registerCPU.RAX, "\0", 16);
+	memcpy(pcb.registerCPU.RBX, "\0", 16);
+	memcpy(pcb.registerCPU.RCX, "\0", 16);
+	memcpy(pcb.registerCPU.RDX, "\0", 16);
 
-	FILE* fd = fopen("./../../assembler.s","r");
+	FILE* fd = fopen(argv[1],"r");
 
 	char buffer[256]; // Buffer para almacenar la línea leída
 
 	Node* list = NULL;
-
+	
 	int len = 0;
 	
-	while (fgets(buffer, sizeof(buffer), fd) != NULL) {
-    
+	while (fgets(buffer, sizeof(buffer), fd) != NULL) 
+	{
 		len = strlen(buffer);
 		buffer[len - 1] = '\0';
 
@@ -45,7 +53,11 @@ int main()
 	pcb.listInstrucciones.cant = list_length(list);
 	pcb.listInstrucciones.instrucciones = list;
 
+	pcb.tablaArchivos.cant = 0;
+	pcb.tablaArchivos.fcb = NULL;
+
 	fclose(fd); // Cierra el archivo
+
 	enviarPCB(&pcb, socket_cliente, MENSAJE);
 
 	return EXIT_SUCCESS;

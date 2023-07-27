@@ -28,17 +28,28 @@ preparation:
 define build_target
 LIST += $(BIN_DIR)/$(1)/main.o $(BIN_DIR)/$(1)/$(1)
 $(BIN_DIR)/$(1)/main.o: $(SRC_DIR)/$(1)/main.c
-	$(CC) $(CFLAGS) -I $(COMMON_DIR) -c $(SRC_DIR)/$(1)/main.c -o $$@
+	$(CC) $(CFLAGS) -I $(COMMON_DIR) -c $(SRC_DIR)/$(1)/main.c -lm -o $$@
 $(BIN_DIR)/$(1)/$(1): $(BIN_DIR)/$(1)/main.o $(COMMON_OBJS)
-	$(CC) $$^ $(CFLAGS) -I $(COMMON_DIR) $(addprefix -l , $(LIBS)) -o $$@
+	$(CC) $$^ $(CFLAGS) -I $(COMMON_DIR) $(addprefix -l , $(LIBS)) -lm -o $$@
 endef
 
 $(foreach target, $(TARGETS), $(eval $(call build_target,$(target))))
 
 $(COMMON_OBJS): $(COMMON_DIR)/%.o : $(COMMON_DIR)/%.c
-	$(CC) $(CFLAGS) $(addprefix -l , $(LIBS)) -I $(COMMON_DIR) -c $< -o $@
+	$(CC) $(CFLAGS) $(addprefix -l , $(LIBS)) -I $(COMMON_DIR) -c $< -lm -o $@
 
 clean:
 	rm -f $(LIST)
+
+logger: clean all
+	rm log.log
+	rm bloques.dat
+	rm bitmap.dat
+	rm fcb
+	> log.log
+	> bloques.dat
+	> fcb
+	> bitmap.dat
+	tail -f log.log
 
 .PHONY: all clean preparation
