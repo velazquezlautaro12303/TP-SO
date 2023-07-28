@@ -84,7 +84,7 @@ int main(int argc, char* argv[])
 	logger = log_create("./../../log.log", "FILESYSTEM", 1, LOG_LEVEL_TRACE);
 	log_error(logger, "%s: %i", argv[0], getpid());
 
-	t_config* config = iniciar_config();
+	t_config* config = iniciar_config("./../../FileSystem.config");
 
 	char* IP_FILESYSTEM 	= config_get_string_value(config, "IP_FILESYSTEM");
 	char* PUERTO_ESCUCHA 	= config_get_string_value(config, "PUERTO_FILESYSTEM");

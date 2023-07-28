@@ -258,7 +258,7 @@ bool execute()
 
 void* conectarse_memory(void* ptr)
 {
-	t_config* config = iniciar_config();
+	t_config* config = iniciar_config("./../../CPU.config");
 
 	char* IP_MEMORIA 		= config_get_string_value(config, "IP_MEMORIA");
 	char* PUERTO_MEMORIA 	= config_get_string_value(config, "PUERTO_MEMORIA");
@@ -285,7 +285,7 @@ int main(int argc, char* argv[])
 	logger = log_create("./../../log.log", "CPU", 1, LOG_LEVEL_TRACE);
 	log_error(logger, "%s: %i", argv[0], getpid());
 
-	t_config* config = iniciar_config();
+	t_config* config = iniciar_config("./../../CPU.config");
 
 	sem_init(&semaphore_MEMORY_1, 0, 0);
 	sem_init(&semaphore_MEMORY_2, 0, 0);

@@ -168,6 +168,7 @@ void* machine_states(void* ptr)
 							}
 						} else {
 							log_error(logger, "No se encontro recurso = %s", pcb->registerCPU.R[2]);
+							pcb->generico[0] = 2;
 							state = EXIT;
 						}
 						break;
@@ -191,6 +192,7 @@ void* machine_states(void* ptr)
 							log_info(logger, "PID: %i - Signal: %s - Instancias: %s", pcb->PID, pcb->registerCPU.R[2], INSTANCIAS_RECURSOS[posRecurso]);
 						} else {
 							log_error(logger, "No se encontro recurso = %s", pcb->registerCPU.R[2]);
+							pcb->generico[0] = 2;
 							state = EXIT;
 						}
 						break;
@@ -212,6 +214,8 @@ void* machine_states(void* ptr)
 						opcode = MENSAJE;
 					} else if (opcode == SEGMENT_FAULT) {
 						log_info(logger, "PID: %i - Error SEG_FAULT- Segmento: %i - Offset: %i - Tamaño: %i", pcb->PID, *((int*)(pcb->registerCPU.R[0])), *((int *)(pcb->registerCPU.R[1])), pcb->tablaSegmentos[*((int *)(pcb->registerCPU.R[0]))].lenSegmentoDatos);
+						pcb->generico[0] = 1;
+						state = EXIT;
 					} else if (opcode == F_OPEN) {
 						int pos;
 						if ((pos = estaElArchivoEnLaTablaGlobal(pcb->registerCPU.R[2])) >= 0) {
@@ -307,7 +311,15 @@ void* machine_states(void* ptr)
 			case EXIT: 
 				{
 					opcode = MENSAJE;
-					log_info(logger, "Finaliza el proceso %i - Motivo:", pcb->PID);
+					if (pcb->generico[0] == 2) {
+						log_info(logger, "Finaliza el proceso %i - Motivo: INVALID_RESOURCE", pcb->PID);
+					} else if (pcb->generico[0] == 1){
+						log_info(logger, "Finaliza el proceso %i - Motivo: SEG_FAULT", pcb->PID);						
+					} else if (pcb->generico[0] == 3){
+						log_info(logger, "Finaliza el proceso %i - Motivo: OUT_OF_MEMORY", pcb->PID);						
+					} else {
+						log_info(logger, "Finaliza el proceso %i - Motivo: SUCCESS", pcb->PID);
+					}
 					pthread_mutex_lock(&mutex_contador_procesos);
 					CANT_PROCESOS--;
 					pthread_mutex_unlock(&mutex_contador_procesos);
@@ -343,7 +355,7 @@ void* conectarse_memory(void* ptr)
 	PCB* pcb_MEMORY = NULL;
 	op_code opcode_aux;
 
-	t_config* config = iniciar_config();
+	t_config* config = iniciar_config("./../../Kernel.config");
 
 	char* IP_MEMORIA 		= config_get_string_value(config, "IP_MEMORIA");
 	char* PUERTO_MEMORIA 	= config_get_string_value(config, "PUERTO_MEMORIA");
@@ -382,7 +394,7 @@ void* conectarse_memory(void* ptr)
 
 void* conectarse_cpu(void* ptr)
 {
-	t_config* config = iniciar_config();
+	t_config* config = iniciar_config("./../../Kernel.config");
 
 	char* IP_CPU 		= config_get_string_value(config, "IP_CPU");
 	char* PUERTO_CPU 	= config_get_string_value(config, "PUERTO_CPU");
@@ -429,7 +441,7 @@ void* conectarse_filesystem(void* ptr)
 {
 	pthread_t thread_filesystem;
 	
-	t_config* config = iniciar_config();
+	t_config* config = iniciar_config("./../../Kernel.config");
 	
 	char* IP_FILESYSTEM 		= config_get_string_value(config, "IP_FILESYSTEM");
 	char* PUERTO_FILESYSTEM 	= config_get_string_value(config, "PUERTO_FILESYSTEM");
@@ -525,7 +537,7 @@ void* new_to_ready(void* ptr)
 
 int main(int argc, char* argv[])
 {
-	t_config* config = iniciar_config();
+	t_config* config = iniciar_config("./../../Kernel.config");
 
 	pcb_NEW = NULL;
     pilaNEW_FIFO = NULL;

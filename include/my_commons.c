@@ -99,9 +99,9 @@ INODO_PROCESO* get_INODO(Node_FCB** head)
 	}
 }
 
-t_config* iniciar_config()
+t_config* iniciar_config(char* file_config)
 {
-	t_config* nuevo_config = config_create("./../../global.config");
+	t_config* nuevo_config = config_create(file_config);
 
 	return nuevo_config;
 }

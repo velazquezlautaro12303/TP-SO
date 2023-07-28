@@ -187,7 +187,7 @@ int main(int argc, char* argv[])
 {
 	list_segments = list_create();
 
-	t_config* config 			= iniciar_config();
+	t_config* config 			= iniciar_config("./../../Memoria.config");
 	char* ip 					= config_get_string_value(config, "IP_MEMORIA");
 	char* puerto 				= config_get_string_value(config, "PUERTO_MEMORIA");
 	char* ALGORITMO_ASIGNACION	= config_get_string_value(config, "ALGORITMO_ASIGNACION");
@@ -425,7 +425,7 @@ void* memory_init(void* ptr)
 	sem_wait(&semaphore_CPU);
 	sem_wait(&semaphore_FILESYSTEM);
 
-	t_config* config = iniciar_config();
+	t_config* config = iniciar_config("./../../Memoria.config");
 
 	TAM_MEMORIA 			= config_get_int_value(config, "TAM_MEMORIA");
 	TAM_SEGMENTO_0 			= config_get_int_value(config, "TAM_SEGMENTO_0");

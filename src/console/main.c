@@ -10,7 +10,7 @@
 
 int main(int argc, char* argv[]) 
 {
-	t_config* config = iniciar_config();
+	t_config* config = iniciar_config("./../../Console.config");
 
 	char* ip 		 = config_get_string_value(config, "IP_KERNEL");
 	char* puerto 	 = config_get_string_value(config, "PUERTO_KERNEL");
