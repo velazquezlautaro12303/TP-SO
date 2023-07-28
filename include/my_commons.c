@@ -460,10 +460,10 @@ void push(ptrNodo* pila, PCB* info)
 	nuevo->info=info;
 	nuevo->sig=NULL;
 	if (*pila == NULL) {
-		puts("PILA NULL");
+		// puts("PILA NULL");
 		*pila=nuevo;
 	} else {
-		puts("PILA NO NULL");
+		// puts("PILA NO NULL");
 		ptrNodo pila_aux = *pila;
 		while (pila_aux->sig != NULL)
 			pila_aux = pila_aux->sig;
@@ -476,7 +476,7 @@ PCB* pop(ptrNodo* pila)
 	ptrNodo* p= pila;
 	PCB* x = NULL;
 	if(*p != NULL) {
-		puts("POP PILA");
+		// puts("POP PILA");
 		x = (*pila)->info;
 		*pila=(*pila)->sig;
 		//free(*p);		

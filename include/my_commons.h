@@ -158,7 +158,7 @@ typedef struct tnodo
 typedef nodo* ptrNodo;
 
 typedef enum STATES {
-	NEW, READY, EXEC, EXIT, BLOCK
+	READY, EXEC, EXIT, BLOCK
 } STATES;
 
 typedef struct

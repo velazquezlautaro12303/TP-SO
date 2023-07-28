@@ -36,12 +36,8 @@ void compactar()
 		TABLE_SEGMENTS* unit_segment_2;
 		unit_segment_1 = list_get(list_sort, i);
 		unit_segment_2 = list_get(list_sort, i+1);
-		if (unit_segment_2->direccionBase - (unit_segment_1->direccionBase + unit_segment_1->lenSegmentoDatos) > 0) {
-			unit_segment_2->direccionBase = unit_segment_1->direccionBase + unit_segment_1->lenSegmentoDatos;
-			list_remove(list_segments, i+1);
-			list_add(list_segments, unit_segment_2);
-			list_sort = list_sorted(list_segments, comparator);
-		}
+
+		unit_segment_2->direccionBase = unit_segment_1->direccionBase + unit_segment_1->lenSegmentoDatos;
 	}
 
 	for (int i = 0; i < list_sort->elements_count; i++)
@@ -104,14 +100,14 @@ bool asignarMemoria(int espacio, int* dir)
 			log_error(logger, "-------------------------------------");
 			int fragmentacion = unit_segment_2->direccionBase - (unit_segment_1->direccionBase + unit_segment_1->lenSegmentoDatos) - espacio;
 			log_debug(logger, "fragmentacion = %i\nfragmentacion interna = %i", fragmentacion, fragmentacion_interna);
-			if (fragmentacion >= 0 && fragmentacion_interna > fragmentacion) {
+			if (fragmentacion >= 0 && fragmentacion_interna >= fragmentacion) {
 				fragmentacion_interna = fragmentacion;
 				pos = i;
 			}
 			if (i+1 == list_sort->elements_count - 1) {
 				fragmentacion = TAM_MEMORIA - (unit_segment_2->direccionBase + unit_segment_2->lenSegmentoDatos) - espacio;
 				log_debug(logger, "______fragmentacion = %i\nfragmentacion interna = %i", fragmentacion, fragmentacion_interna);
-				if (fragmentacion >= 0 && fragmentacion_interna > fragmentacion) {
+				if (fragmentacion >= 0 && fragmentacion_interna >= fragmentacion) {
 					pos = i+1;
 				}
 			}
@@ -138,13 +134,13 @@ bool asignarMemoria(int espacio, int* dir)
 			log_error(logger, "unit_segment_1->lenSegmentoDatos = %i", unit_segment_1->lenSegmentoDatos);
 			log_error(logger, "-------------------------------------");
 			int fragmentacion = unit_segment_2->direccionBase - (unit_segment_1->direccionBase + unit_segment_1->lenSegmentoDatos) - espacio;
-			if (fragmentacion >= 0 && fragmentacion_interna < fragmentacion) {
+			if (fragmentacion >= 0 && fragmentacion_interna <= fragmentacion) {
 				fragmentacion_interna = fragmentacion;
 				pos = i;
 			}
 			if (i+1 == list_sort->elements_count - 1) {
 				fragmentacion = TAM_MEMORIA - (unit_segment_2->direccionBase + unit_segment_2->lenSegmentoDatos) - espacio;
-				if (fragmentacion >= 0 && fragmentacion_interna < fragmentacion) {
+				if (fragmentacion >= 0 && fragmentacion_interna <= fragmentacion) {
 					pos = i+1;
 				} 
 			}

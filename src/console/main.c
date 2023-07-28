@@ -23,7 +23,7 @@ int main(int argc, char* argv[])
 	pcb.PC = 0;
 	pcb.tablaSegmentos = NULL;
 	pcb.CANT_SEGMENTOS = 0;
-	memcpy(pcb.registerCPU.R, "\0", 16*5);
+	memcpy(pcb.registerCPU.R, "\0", 16*CANT_REG_PROPOSITO_GENERAL);
 	memcpy(pcb.registerCPU.RAX, "\0", 16);
 	memcpy(pcb.registerCPU.RBX, "\0", 16);
 	memcpy(pcb.registerCPU.RCX, "\0", 16);

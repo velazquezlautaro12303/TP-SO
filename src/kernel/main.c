@@ -9,12 +9,13 @@
 #include <time.h>
 #include <commons/temporal.h>
 
+PCB* pcb_NEW;
 ptrNodo pilaNEW_FIFO;
 ptrNodo pilaREADY_FIFO;
 ptrNodo pilaBLOCKED_FIFO;
 ptrNodo pilaBLOCKED_FILESYSTEM_FIFO;
 ptrNodo* pilaBLOCKED;
-pthread_mutex_t mutex_pila_NEW, mutex_pila_READY, mutex_pila_BLOCKED, mutex_pila_BLOCKED_FILESYSTEM;
+pthread_mutex_t mutex_pila_NEW, mutex_pila_READY, mutex_pila_BLOCKED, mutex_pila_BLOCKED_FILESYSTEM, mutex_contador_procesos, mutex_memory;
 op_code opcode;
 t_log* logger;
 PCB* pcb;
@@ -28,6 +29,7 @@ t_list* tabla_de_archivos;
 uint32_t ESTIMACION_INICIAL;
 double HRRN_ALFA; 
 uint8_t ALGORITMO_PLANIFICACION;
+int CANT_PROCESOS, GRADO_MAX_MULTIPROGRAMACION;
 
 INODO_PROCESO* buscarArchivo(Node_FCB* node_FCB, char *nameFile) 
 {
@@ -74,38 +76,21 @@ static int existeRecurso(char *recurso)
 }
 
 bool grado_de_multiprogramacion()
-{
-	return true;
+{	
+	uint8_t cant_procesos;
+	pthread_mutex_lock(&mutex_contador_procesos);
+	cant_procesos = CANT_PROCESOS;
+	pthread_mutex_unlock(&mutex_contador_procesos);
+	return cant_procesos < GRADO_MAX_MULTIPROGRAMACION;
 }
 
 void* machine_states(void* ptr)
 {
-	static STATES state = NEW;
+	static STATES state = READY;
 	while(true)
 	{
 		switch(state)
 		{
-			case NEW:
-				{
-					pthread_mutex_lock(&mutex_pila_NEW);
-					pcb = pop(&pilaNEW_FIFO);
-					pthread_mutex_unlock(&mutex_pila_NEW);
-
-					if (pcb != NULL && grado_de_multiprogramacion())
-					{
-						opcode = INIT_PROCESS;
-						sem_post(&semaphore_MEMORY_1);
-						sem_wait(&semaphore_MEMORY_2);
-						opcode = MENSAJE;
-						pcb->tiempoLlegadaReady = time(NULL);
-						pthread_mutex_lock(&mutex_pila_READY);
-						push(&pilaREADY_FIFO, pcb);
-						pthread_mutex_unlock(&mutex_pila_READY);
-						log_info(logger, "PID: %i - Estado Anterior: NEW - Estado Actual: READY", pcb->PID);
-					}
-					
-					state = READY;
-				} break;
 			case READY:
 				{
 					pthread_mutex_lock(&mutex_pila_READY);
@@ -145,8 +130,6 @@ void* machine_states(void* ptr)
 						pcb->tiempoLlegadaReady = time(NULL);
 						state = EXEC;
 						log_info(logger, "PID: %i - Estado Anterior: READY - Estado Actual: EXEC", pcb->PID);
-					} else {
-						state = NEW;	
 					}
 				} break;
 			case EXEC:
@@ -222,8 +205,10 @@ void* machine_states(void* ptr)
 						state = READY;
 						break;
 					} else if (opcode == CREATE_SEGMENT || opcode == DELETE_SEGMENT) {
+						pthread_mutex_lock(&mutex_memory);
 						sem_post(&semaphore_MEMORY_1);
 						sem_wait(&semaphore_MEMORY_2);
+						pthread_mutex_unlock(&mutex_memory);
 						opcode = MENSAJE;
 					} else if (opcode == SEGMENT_FAULT) {
 						log_info(logger, "PID: %i - Error SEG_FAULT- Segmento: %i - Offset: %i - Tamaño: %i", pcb->PID, *((int*)(pcb->registerCPU.R[0])), *((int *)(pcb->registerCPU.R[1])), pcb->tablaSegmentos[*((int *)(pcb->registerCPU.R[0]))].lenSegmentoDatos);
@@ -323,8 +308,11 @@ void* machine_states(void* ptr)
 				{
 					opcode = MENSAJE;
 					log_info(logger, "Finaliza el proceso %i - Motivo:", pcb->PID);
+					pthread_mutex_lock(&mutex_contador_procesos);
+					CANT_PROCESOS--;
+					pthread_mutex_unlock(&mutex_contador_procesos);
 					// free(pcb);
-					state = NEW;
+					state = READY;
 				} break;
 			case BLOCK: break;
 		}
@@ -352,6 +340,9 @@ void* atender_cliente(void* socket_cliente)
 
 void* conectarse_memory(void* ptr)
 {
+	PCB* pcb_MEMORY = NULL;
+	op_code opcode_aux;
+
 	t_config* config = iniciar_config();
 
 	char* IP_MEMORIA 		= config_get_string_value(config, "IP_MEMORIA");
@@ -364,8 +355,24 @@ void* conectarse_memory(void* ptr)
 	{
 		sem_wait(&semaphore_MEMORY_1);
 
-		enviarPCB(pcb, socket_cliente_memory, opcode);
-		pcb = recibirPCB(socket_cliente_memory, &opcode);
+		if (opcode == CREATE_SEGMENT || opcode == DELETE_SEGMENT) {
+			pcb_MEMORY = pcb;
+			opcode_aux = opcode;
+		} else {
+			pcb_MEMORY = pcb_NEW;
+			opcode_aux = pcb_MEMORY->generico[0];
+		}
+
+		enviarPCB(pcb_MEMORY, socket_cliente_memory, opcode_aux);
+		pcb_MEMORY = recibirPCB(socket_cliente_memory, &opcode_aux);
+
+		if (opcode == CREATE_SEGMENT || opcode == DELETE_SEGMENT) {
+			pcb = pcb_MEMORY;
+			opcode = opcode_aux;
+		} else {
+			pcb_NEW = pcb_MEMORY;
+			pcb_MEMORY->generico[0] = opcode_aux;
+		}
 
 		sem_post(&semaphore_MEMORY_2);
 	}
@@ -477,15 +484,56 @@ void* state_blocked(void* ptr)
 	return NULL;
 }
 
+void* new_to_ready(void* ptr)
+{
+	while (true)
+	{
+		pthread_mutex_lock(&mutex_pila_NEW);
+		pcb_NEW = pop(&pilaNEW_FIFO);
+		pthread_mutex_unlock(&mutex_pila_NEW);
+
+		if (pcb_NEW != NULL) 
+		{
+			if (grado_de_multiprogramacion())
+			{
+				pthread_mutex_lock(&mutex_contador_procesos);
+				CANT_PROCESOS++;
+				pthread_mutex_unlock(&mutex_contador_procesos);
+				pcb_NEW->generico[0] = INIT_PROCESS;
+				// opcode = INIT_PROCESS;
+				pthread_mutex_lock(&mutex_memory);
+				sem_post(&semaphore_MEMORY_1);
+				sem_wait(&semaphore_MEMORY_2);
+				pthread_mutex_unlock(&mutex_memory);
+				// opcode = MENSAJE;
+				pcb_NEW->generico[0] = MENSAJE;
+				pcb_NEW->tiempoLlegadaReady = time(NULL);
+				log_info(logger, "PID: %i - Estado Anterior: NEW - Estado Actual: READY", pcb_NEW->PID);
+				pthread_mutex_lock(&mutex_pila_READY);
+				push(&pilaREADY_FIFO, pcb_NEW);
+				pthread_mutex_unlock(&mutex_pila_READY);
+			} else 
+			{
+				pthread_mutex_lock(&mutex_pila_NEW);
+				push(&pilaNEW_FIFO, pcb_NEW);
+				pthread_mutex_unlock(&mutex_pila_NEW);
+			}
+		}
+	}
+	return NULL;
+}
+
 int main(int argc, char* argv[])
 {
 	t_config* config = iniciar_config();
 
+	pcb_NEW = NULL;
     pilaNEW_FIFO = NULL;
 	pilaBLOCKED_FILESYSTEM_FIFO = NULL;
 	pcb = NULL;
 	opcode = MENSAJE;
-
+	CANT_PROCESOS = 0;
+	
 	logger = log_create("./../../log.log", "Kernel", 1, LOG_LEVEL_TRACE);
 	log_error(logger, "%s: %i", argv[0], getpid());
 
@@ -498,6 +546,7 @@ int main(int argc, char* argv[])
 	ESTIMACION_INICIAL 					= config_get_int_value(config, "ESTIMACION_INICIAL");
 	HRRN_ALFA		 					= config_get_double_value(config, "HRRN_ALFA");
 	char* ALGORITMO_PLANIFICACION_AUX 	= config_get_string_value(config, "ALGORITMO_PLANIFICACION");
+	GRADO_MAX_MULTIPROGRAMACION			= config_get_int_value(config, "GRADO_MAX_MULTIPROGRAMACION");
 
 	if (strcmp(ALGORITMO_PLANIFICACION_AUX, "FIFO") == 0) {
 		ALGORITMO_PLANIFICACION = 1;
@@ -520,12 +569,17 @@ int main(int argc, char* argv[])
 	sem_init(&semaphore_FILESYSTEM_1, 0, 0);
 	sem_init(&semaphore_FILESYSTEM_2, 0, 0);
 
-	pthread_t thread_memory, thread_cpu, thread_filesystem, pthread_machine_states, pthread_machine_states_blocked;
+	pthread_t thread_memory, thread_cpu, thread_filesystem, pthread_machine_states, pthread_machine_states_blocked, pthread_new;
 
 	pthread_mutex_init(&mutex_pila_NEW, NULL);
 	pthread_mutex_init(&mutex_pila_READY, NULL);
 	pthread_mutex_init(&mutex_pila_BLOCKED, NULL);
 	pthread_mutex_init(&mutex_pila_BLOCKED_FILESYSTEM, NULL);
+	pthread_mutex_init(&mutex_contador_procesos, NULL);
+	pthread_mutex_init(&mutex_memory, NULL);
+
+	pthread_create(&pthread_new, NULL, (void*) new_to_ready, NULL);
+	pthread_detach(pthread_new);
 
 	pthread_create(&thread_memory, NULL, (void*) conectarse_memory, NULL);
 	pthread_detach(thread_memory);
