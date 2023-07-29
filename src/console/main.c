@@ -55,6 +55,8 @@ int main(int argc, char* argv[])
 
 	pcb.tablaArchivos.cant = 0;
 	pcb.tablaArchivos.fcb = NULL;
+	pcb.generico[0] = 0;
+	pcb.generico[1] = 0;
 
 	fclose(fd); // Cierra el archivo
 

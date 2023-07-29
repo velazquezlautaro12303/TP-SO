@@ -168,7 +168,7 @@ void* machine_states(void* ptr)
 							}
 						} else {
 							log_error(logger, "No se encontro recurso = %s", pcb->registerCPU.R[2]);
-							pcb->generico[0] = 2;
+							pcb->generico[1] = 2;
 							state = EXIT;
 						}
 						break;
@@ -192,7 +192,7 @@ void* machine_states(void* ptr)
 							log_info(logger, "PID: %i - Signal: %s - Instancias: %s", pcb->PID, pcb->registerCPU.R[2], INSTANCIAS_RECURSOS[posRecurso]);
 						} else {
 							log_error(logger, "No se encontro recurso = %s", pcb->registerCPU.R[2]);
-							pcb->generico[0] = 2;
+							pcb->generico[1] = 2;
 							state = EXIT;
 						}
 						break;
@@ -214,7 +214,7 @@ void* machine_states(void* ptr)
 						opcode = MENSAJE;
 					} else if (opcode == SEGMENT_FAULT) {
 						log_info(logger, "PID: %i - Error SEG_FAULT- Segmento: %i - Offset: %i - Tamaño: %i", pcb->PID, *((int*)(pcb->registerCPU.R[0])), *((int *)(pcb->registerCPU.R[1])), pcb->tablaSegmentos[*((int *)(pcb->registerCPU.R[0]))].lenSegmentoDatos);
-						pcb->generico[0] = 1;
+						pcb->generico[1] = 1;
 						state = EXIT;
 					} else if (opcode == F_OPEN) {
 						int pos;
@@ -311,11 +311,11 @@ void* machine_states(void* ptr)
 			case EXIT: 
 				{
 					opcode = MENSAJE;
-					if (pcb->generico[0] == 2) {
+					if (pcb->generico[1] == 2) {
 						log_info(logger, "Finaliza el proceso %i - Motivo: INVALID_RESOURCE", pcb->PID);
-					} else if (pcb->generico[0] == 1){
+					} else if (pcb->generico[1] == 1){
 						log_info(logger, "Finaliza el proceso %i - Motivo: SEG_FAULT", pcb->PID);						
-					} else if (pcb->generico[0] == 3){
+					} else if (pcb->generico[1] == 3){
 						log_info(logger, "Finaliza el proceso %i - Motivo: OUT_OF_MEMORY", pcb->PID);						
 					} else {
 						log_info(logger, "Finaliza el proceso %i - Motivo: SUCCESS", pcb->PID);
