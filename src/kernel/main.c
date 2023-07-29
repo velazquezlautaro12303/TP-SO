@@ -323,7 +323,7 @@ void* machine_states(void* ptr)
 					pthread_mutex_lock(&mutex_contador_procesos);
 					CANT_PROCESOS--;
 					pthread_mutex_unlock(&mutex_contador_procesos);
-					// free(pcb);
+					free(pcb);
 					state = READY;
 				} break;
 			case BLOCK: break;
